@@ -383,36 +383,32 @@ def create_booking():
         machine_id = data.get('machine_id')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
-        
+
         if not all([user_id, machine_id, start_time, end_time]):
             return jsonify({'message': 'All fields are required'}), 400
-        
-        # Validate booking duration (maximum 2 hours)
-        from datetime import datetime
-        # Parse datetime strings and make them timezone-naive
+
+        from datetime import datetime, timedelta
         start_dt = datetime.fromisoformat(start_time.replace('Z', '').replace('+00:00', ''))
         end_dt = datetime.fromisoformat(end_time.replace('Z', '').replace('+00:00', ''))
         duration_hours = (end_dt - start_dt).total_seconds() / 3600
-        
+
         if duration_hours > 2:
             return jsonify({'message': 'Maximum booking duration is 2 hours'}), 400
-        
         if duration_hours <= 0:
             return jsonify({'message': 'Invalid booking duration'}), 400
-        
+
         db = get_db()
-        
+
         # Check if machine exists
         machine = db.execute(
             'SELECT status FROM washing_machines WHERE id = ?', (machine_id,)
         ).fetchone()
-        
+
         if not machine:
             return jsonify({'message': 'Machine not found'}), 404
-        
         if machine['status'] == 'broken':
             return jsonify({'message': 'Machine is out of order'}), 400
-        
+
         # Check for conflicting bookings
         conflicts = db.execute('''
             SELECT id FROM bookings 
@@ -423,71 +419,66 @@ def create_booking():
                 (start_time >= ? AND end_time <= ?)
             )
         ''', (machine_id, start_time, start_time, end_time, end_time, start_time, end_time)).fetchall()
-        
+
         if conflicts:
             return jsonify({'message': 'Time slot conflicts with existing booking'}), 400
-        
-        # Check 10-day booking restriction per user
-        from datetime import datetime, timedelta
-        current_time = datetime.now()  # This is timezone-naive
-        ten_days_from_now = current_time + timedelta(days=10)
-        
-        # Count existing bookings for this user in the next 10 days
+
+        # Check if user already has a booking in the 10-day window starting from the new booking
+        ten_days_from_start = start_dt + timedelta(days=10)
         existing_bookings = db.execute('''
             SELECT COUNT(*) as count FROM bookings 
             WHERE user_id = ? AND status IN ('pending', 'confirmed')
-            AND start_time BETWEEN ? AND ?
-        ''', (user_id, current_time.isoformat(), ten_days_from_now.isoformat())).fetchone()
-        
-        if existing_bookings['count'] >= 1:
-            return jsonify({'message': 'You can only book one slot in the next 10 days'}), 400
-        
+            AND start_time >= ? AND start_time < ?
+        ''', (user_id, start_dt.isoformat(), ten_days_from_start.isoformat())).fetchone()
+
+        if existing_bookings['count'] > 0:
+            return jsonify({'message': 'You can only have one booking within any 10-day period'}), 400
+
         # Create booking
         cursor = db.execute('''
             INSERT INTO bookings (user_id, machine_id, start_time, end_time, status)
             VALUES (?, ?, ?, ?, ?)
         ''', (user_id, machine_id, start_time, end_time, 'confirmed'))
-        
         booking_id = cursor.lastrowid
-        
-        # Update machine status and last used info
-        current_time_now = datetime.now()  # This is timezone-naive
-        if start_dt <= current_time_now and end_dt > current_time_now:
+
+        # Update machine status if the booking is currently active
+        current_time_now = datetime.now()
+        if start_dt <= current_time_now < end_dt:
             db.execute('''
                 UPDATE washing_machines 
                 SET status = 'in_use', last_used_by = ?, last_used_time = ?
                 WHERE id = ?
             ''', (user_id, current_time_now.isoformat(), machine_id))
-        
+
         # Get user and machine details for email
         user = db.execute('''
             SELECT username, email FROM users WHERE id = ?
         ''', (user_id,)).fetchone()
-        
         machine = db.execute('''
             SELECT machine_name FROM washing_machines WHERE id = ?
         ''', (machine_id,)).fetchone()
-        
+
         db.commit()
-        
-        # Send email notification if user has email
+
+        # Send confirmation email
         if user and user['email'] and machine:
             send_booking_confirmation_email(
-                user['email'], 
-                user['username'], 
-                machine['machine_name'], 
-                start_time, 
-                end_time, 
+                user['email'],
+                user['username'],
+                machine['machine_name'],
+                start_time,
+                end_time,
                 booking_id
             )
-        
+
         return jsonify({
             'message': 'Booking created successfully',
             'booking_id': booking_id
         }), 201
-        
+
     except Exception as e:
         return jsonify({'message': f'Booking failed: {str(e)}'}), 500
+
 
 @app.route('/api/bookings/user/<int:user_id>', methods=['GET'])
 def get_user_bookings(user_id):
