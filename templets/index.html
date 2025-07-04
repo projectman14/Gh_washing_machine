@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LNMIIT Girls Hostel - Washing Machine Booking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Font Awesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Google Sign-In -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="logo-section">
+                <img src="lnmiit_logo.png" alt="LNMIIT Logo" class="logo">
+                <div class="header-text">
+                    <h1>LNMIIT Girls Hostel</h1>
+                    <p>Washing Machine Booking System</p>
+                </div>
+            </div>
+            <nav class="nav">
+                <button id="loginBtn" class="btn-primary">Login</button>
+                <button id="adminBtn" class="btn-secondary">Admin</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Student Login</h2>
+
+                <!-- Google Sign-In Button -->
+                <div class="google-signin-section">
+                    <p class="signin-instruction">Please sign in with your LNMIIT Google account (@lnmiit.ac.in)</p>
+                    <div id="g_id_onload"
+                        data-client_id="624690583385-s3cnmv6iro5kjjror5oq6t4iulerrcde.apps.googleusercontent.com"
+                        data-callback="handleCredentialResponse" data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
+                        data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Login Modal -->
+        <div id="adminModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Admin Login</h2>
+                <form id="adminForm">
+                    <div class="form-group">
+                        <label for="adminId">Admin ID:</label>
+                        <input type="text" id="adminId" name="adminId" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminPassword">Password:</label>
+                        <input type="password" id="adminPassword" name="adminPassword" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Welcome Section -->
+        <section id="welcomeSection" class="welcome-section">
+            <div class="container">
+                <div class="welcome-content">
+                    <h2>Welcome to Washing Machine Booking System</h2>
+                    <p>Book your washing machine slot 24x7 without standing in queues!</p>
+                    <div class="features">
+                        <div class="feature">
+                            <i class="fas fa-clock"></i>
+                            <h3>24/7 Booking</h3>
+                            <p>Book anytime, anywhere</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-mobile-alt"></i>
+                            <h3>Easy to Use</h3>
+                            <p>Simple and intuitive interface</p>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>Real-time Status</h3>
+                            <p>Check machine availability instantly</p>
+                        </div>
+                    </div>
+                    <button id="getStartedBtn" class="btn-primary btn-large">Get Started</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Dashboard -->
+        <section id="userDashboard" class="dashboard" style="display: none;">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h2>Welcome, <span id="userName"></span>!</h2>
+                    <button id="logoutBtn" class="btn-secondary">Logout</button>
+                </div>
+
+                <!-- Booking Form -->
+                <div class="booking-section">
+                    <h3>Book a Machine</h3>
+                    <form id="bookingForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="machineSelect">Select Machine:</label>
+                                <select id="machineSelect" name="machineId" required>
+                                    <option value="">Choose a machine</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="startTime">Start Time:</label>
+                                <input type="datetime-local" id="startTime" name="startTime" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="duration">Duration (hours):</label>
+                                <select id="duration" name="duration" required>
+                                    <option value="0.5">30 minutes</option>
+                                    <option value="1">1 hour</option>
+                                    <option value="1.5">1.5 hours</option>
+                                    <option value="2">2 hours</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">Book Machine</button>
+                    </form>
+                </div>
+
+                <!-- Check Booked Slots -->
+                <div class="slot-checking-section">
+                    <h3>Check Booked Slots <button id="toggleSlotsBtn" class="btn-info btn-small">Show</button></h3>
+                    <div id="slotsContent" style="display: none;">
+                        <div class="date-selector">
+                            <label for="slotDate">Select Date:</label>
+                            <input type="date" id="slotDate" name="slotDate">
+                            <button id="checkSlotsBtn" class="btn-info">Check Slots</button>
+                        </div>
+                        <div id="slotsDisplay" class="slots-display">
+                            <!-- Slots will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Washing Machine Status -->
+                <div class="machine-grid">
+                    <h3>Washing Machine Status</h3>
+                    <div id="machineList" class="machines">
+                        <!-- Machines will be loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- My Bookings -->
+                <div class="bookings-section">
+                    <h3>My Bookings</h3>
+                    <div id="userBookings" class="bookings-list">
+                        <!-- Bookings will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Dashboard -->
+        <section id="adminDashboard" class="dashboard" style="display: none;">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h2>Admin Dashboard</h2>
+                    <button id="adminLogoutBtn" class="btn-secondary">Logout</button>
+                </div>
+
+                <!-- Machine Management -->
+                <div class="admin-section">
+                    <h3>Machine Management</h3>
+                    <div class="machine-status-summary">
+                        <div class="status-card available">
+                            <h4 id="availableCount">0</h4>
+                            <p>Available</p>
+                        </div>
+                        <div class="status-card in-use">
+                            <h4 id="inUseCount">0</h4>
+                            <p>In Use</p>
+                        </div>
+                        <div class="status-card broken">
+                            <h4 id="brokenCount">0</h4>
+                            <p>Broken</p>
+                        </div>
+                    </div>
+                    <div id="adminMachineList" class="admin-machines">
+                        <!-- Admin machine controls will be loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- All Bookings -->
+                <div class="admin-section">
+                    <h3>All Bookings <button id="togglePastBookingsBtn" class="btn-info btn-small">Show Past
+                            Bookings</button></h3>
+                    <div id="allBookings" class="bookings-list">
+                        <!-- All bookings will be loaded dynamically -->
+                    </div>
+                </div>
+
+                <!-- Add New Machine -->
+                <div class="admin-section">
+                    <h3>Add New Machine</h3>
+                    <form id="addMachineForm">
+                        <div class="form-group">
+                            <label for="machineName">Machine Name:</label>
+                            <input type="text" id="machineName" name="machineName" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Machine</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 LNMIIT Girls Hostel</p>
+            <p class="made-by-love">Made with ❤️ by Anmol, Neha , Lakshya & Amartya</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
